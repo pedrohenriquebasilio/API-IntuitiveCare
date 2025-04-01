@@ -25,3 +25,28 @@ async def load_data():
             if str(row[field]).lower().startswith(query_lower):
                 score += 2
     return score
+@app.post("/search", response_model=List[dict])
+async def search_operadoras(request: SearchRequest):
+    if not request.query:
+        raise HTTPException(status_code=400, detail="Query não pode estar vazia")
+
+    operadoras_df["relevance"] = operadoras_df.apply(
+        lambda row: calculate_relevance(row, request.query), axis=1
+    )
+    resultados = (
+        operadoras_df[operadoras_df["relevance"] > 0]
+        .sort_values(by="relevance", ascending=False)
+        .head(request.limit)
+        .drop(columns=["relevance"])
+        .to_dict(orient="records")
+    )
+
+    if not resultados:
+        return []
+    
+    return resultados
+
+#Rota de verificacao
+@app.get("/")
+async def root():
+    return {"message": "API de Busca de Operadoras de Saúde está funcionando!"}
